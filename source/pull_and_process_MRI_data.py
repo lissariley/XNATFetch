@@ -19,6 +19,7 @@ from concatenate_multiecho import concatenate_subject
 import argparse
 import sys
 import logging
+import textwrap
 
 def main():
     # Parse command line arguments
@@ -79,7 +80,7 @@ def parseArgs():
     DEFAULT_XNAT_PATH = '/xnat'
     DEFAULT_USER = os.environ['USER']
 
-    epilog = '''
+    epilog = textwrap.dedent('''\
 Additional information:
 
 Example usage:
@@ -91,7 +92,8 @@ python pull_and_process_MRI_data.py -u JaneDoe --sub-list "SUB-001,SUB002,SUB003
 python pull_and_process_MRI_data.py -u JaneDoe --sub-file subsToGet.txt --include_file "*" -v
     Same as above, but get data for subjects specified in the file subsToGet.txt
     which should have one subject name per line.
-'''
+''')
+
     parser = argparse.ArgumentParser(description='Download data from HD-HNI ' +
          'XNAT instance, and concatenate any multiecho dicom data found.',
          epilog=epilog
