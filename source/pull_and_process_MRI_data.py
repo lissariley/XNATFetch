@@ -25,7 +25,7 @@
 
 import os
 from get_xnat_data import get_data
-from me_concat.concatenate_multiecho import concatenate_subject
+from concatenate_multiecho import concatenate_subject
 import argparse
 import sys
 import logging
