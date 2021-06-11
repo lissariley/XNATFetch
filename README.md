@@ -13,3 +13,4 @@ A set of utilities for fetching MRI data from an XNAT server, and doing some org
 * Create executable wrapper for ease of use that activates venv for you?
 * Unify/normalize/improve formatting of log output
 * Make bigger formatting divisions in log output between major steps in the process
+* Add example usage and explanatory text to help output
