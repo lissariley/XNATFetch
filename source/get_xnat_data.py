@@ -171,9 +171,13 @@ def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
                 logging.critical('++ WARNING: Failed to unzip auxiliary file {aux_file}.'.format(aux_file=auxiliary_filename))
                 traceback.print_exc()
 
+        logging.info('++ Attempting to organize any files matching pattern {regex} into a scan folder...'.format(regex=aux_files_org_regex))
         # Assemble a full list of all auxiliary files
         all_auxiliary_paths = [os.path.join(dp, f) for dp, dn, filenames in os.walk(aux_path) for f in filenames]
         # Loop over all auxiliary files and attempt to organize them if they match the regex.
+        org_count = 0
+        org_fail = 0
+        non_org_count = 0
         for auxiliary_path in all_auxiliary_paths:
             base_name = os.path.basename(auxiliary_path)
             m = re.search(aux_files_org_regex, base_name)
@@ -185,6 +189,7 @@ def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
                 try:
                     # Scan path probably already exists, but in case it doesn't create it.
                     os.mkdir(scan_path)
+                    logging.info('Created new scan {scan_num} to accomodate auxiliary files.'.format(scan_num=scan_name))
                 except FileExistsError:
                     pass
 
@@ -194,16 +199,26 @@ def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
                     # Copy, don't move
                     try:
                         shutil.copy(auxiliary_path, new_aux_path)
+                        org_count = org_count + 1
                     except:
                         logging.critical('Failed to copy auxiliary file. src={src}, dst={dst}'.format(src=auxiliary_path, dst=new_aux_path))
                         traceback.print_exc()
+                        org_fail = org_fail + 1
                 else:
                     # Move, don't copy
                     try:
                         shutil.move(auxiliary_path, new_aux_path)
+                        org_count = org_count + 1
                     except:
                         logging.critical('Failed to move auxiliary file. src={src}, dst={dst}'.format(src=auxiliary_path, dst=new_aux_path))
                         traceback.print_exc()
+                        org_fail = org_fail + 1
+            else:
+                non_org_count = non_org_count + 1
+        logging.info('++ Done organizing auxiliary files into scan folders:')
+        logging.info('++    Successfully organized {n} auxiliary files into scan folders.'.format(n=org_count))
+        logging.info('++    Failed to organize {n} auxiliary files into scan folders.'.format(n=org_fail))
+        logging.info('++    {n} auxiliary files were not marked with a scan.'.format(n=non_org_count))
 
 def pull_data(xnat, target_dir,
               project=None, sub_list=None,

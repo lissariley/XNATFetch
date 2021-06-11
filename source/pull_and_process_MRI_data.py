@@ -13,16 +13,6 @@
 # 1. Pull MRI data from an XNAT server
 # 2. Process the MRI data to transform DICOM files into multi-echo
 
-# Todo
-#   Finish implementing multiecho DICOM deletion after successful concatenation
-#   Make script automatically skip multiecho concatenation if appropriate nifti files already exist
-#   Possibly pull data from XNAT in parallel?
-#   Possibly make this play nicely with SLURM
-#   Add ability to specify data output directory, so it doesn't always dump to the cwd
-#   Create executable wrapper? Could activate xnat environment then run
-#   Unify/normalize formatting of log output
-#   Make bigger formatting divisions in output between major steps in the process
-
 import os
 from get_xnat_data import get_data
 from concatenate_multiecho import concatenate_subject
