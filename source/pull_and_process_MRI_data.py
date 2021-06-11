@@ -79,8 +79,23 @@ def parseArgs():
     DEFAULT_XNAT_PATH = '/xnat'
     DEFAULT_USER = os.environ['USER']
 
+    epilog = '''
+Additional information:
+
+Example usage:
+
+python pull_and_process_MRI_data.py -u JaneDoe --sub-list "SUB-001,SUB002,SUB003" --include_file "*" -v
+    Get data from default XNAT server with username JaneDoe. Get three specific
+    subjects by name, and include all filetypes ("*")
+
+python pull_and_process_MRI_data.py -u JaneDoe --sub-file subsToGet.txt --include_file "*" -v
+    Same as above, but get data for subjects specified in the file subsToGet.txt
+    which should have one subject name per line.
+'''
     parser = argparse.ArgumentParser(description='Download data from HD-HNI ' +
-                                     'XNAT instance.')
+         'XNAT instance, and concatenate any multiecho dicom data found.',
+         epilog=epilog
+         )
 
     parser.add_argument('project',
                         help='Name of XNAT project to download data from.'    )
