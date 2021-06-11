@@ -1,0 +1,39 @@
+#!/bin/tcsh
+if ($#argv < 2) then
+  echo "Usage: nii_mdir_sdcme start_dir# end_dir#"
+  exit
+else
+ set start = $argv[1]
+ set end = $argv[2]
+
+  if ( ! -d ./medata ) then
+   sudo mkdir ./medata
+  endif
+# sudo chown sdcme ./medata
+# sudo chgrp users ./medata
+
+ set i = $start
+ while ( $i <= $end )
+   echo " "
+   if ( $i < 10 ) then
+     echo "Entering 000$i..."
+     cd 000$i
+#     sudo chmod 777 .
+     niidicom_sdcme run0$i
+     #mv *+orig.* ../medata
+#     sudo chmod 755 .
+   else
+     echo "Entering 00$i..."
+     cd 00$i
+#     sudo chmod 777 .
+     niidicom_sdcme run$i
+     #mv *+orig.* ../medata
+#     sudo chmod 755 .
+   endif
+
+   cd ..
+
+   @ i++
+ end
+
+endif

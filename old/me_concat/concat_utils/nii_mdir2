@@ -1,0 +1,32 @@
+#!/bin/tcsh
+if ($#argv < 2) then
+  echo "Usage: nii_mdir2 start_dir# end_dir#"
+  exit
+else	
+ set start = $argv[1]
+ set end = $argv[2]
+ 
+  if ( ! -d ./medata ) then
+   mkdir ./medata
+ endif
+
+ set i = $start
+ while ( $i <= $end )
+   echo " "
+   if ( $i < 10 ) then
+     echo "Entering 000$i..."
+     cd 000$i
+     niidicom2 run0$i
+   else
+     echo "Entering 00$i..."
+     cd 00$i
+     niidicom2 run$i
+   endif
+   
+   cd ..
+   
+   @ i++  
+ end
+ 
+endif
+

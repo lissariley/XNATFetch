@@ -1,0 +1,56 @@
+#!/bin/tcsh
+if ($#argv < 1) then
+  echo "Usage: niidicom_sdcme out_brik_name"
+  exit
+else
+
+ set outfile = $argv[1]
+
+ set file1 = `ls *.dcm | head -1`
+ echo "1st filename = $file1"
+
+ set sltot = `dicom_hinfo -tag 0020,1002 $file1 | awk '{print $2}'`
+ echo "total volume = $sltot"
+
+ set slind = `dicom_hinfo -tag 0019,10a2 $file1 | awk '{print $2}'`
+ echo "1st sl index = $slind"
+
+ @ sln = $sltot / 3
+ echo "slice number = $sln"
+
+ set reps = `dicom_hinfo -tag 0020,0105 $file1 | awk '{print $2}'`
+ echo "reps         = $reps"
+
+ echo "Getting header info..."
+
+# Pass all the dicom files to dicom_hinfo to get the raw data run number.
+# Use xargs to chunk the files into groups of 100...possibly for performance reasons?
+ ls | xargs -n 100 dicom_hinfo -tag 0019,10a2 >> ../medata/_me_slindex
+
+  if ( ! -f ../medata/_me_slindex ) then
+   echo "_me_slindex missing!!!"
+   exit 1
+ endif
+
+ set ech = 1
+ while ( $ech <= 3)
+   echo " "
+   echo "e${ech}......"
+   set i = 1
+   while ( $i <= $sln )
+     grep "dcm[[:space:]]$slind" ../medata/_me_slindex | awk '{print $1}' > ../medata/_me${ech}_sl$slind
+     @ i++
+     @ slind++
+   end
+
+   paste ../medata/_me${ech}_sl* > ../medata/_me${ech}_infilelist
+   Dimon -infile_list ../medata/_me${ech}_infilelist -GERT_Reco -gert_create_dataset -gert_outdir ../medata -gert_to3d_prefix ${outfile}.e0${ech} -gert_write_as_nifti -quit
+   rm -f dimon.files.run.*
+   rm -f GERT_Reco_dicom_*
+
+ @ ech++
+ end
+
+ rm -f ../medata/_me*
+
+endif

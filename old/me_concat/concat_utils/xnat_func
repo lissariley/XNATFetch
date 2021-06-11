@@ -1,0 +1,367 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+Usage:  xnat_func.py -h
+                     [--project PROJ]
+                     [--subject SUB]
+                     exam
+
+This script is for uploading auxilliary data to XNAT.
+
+Simply call the function with the appropriate exam number and it will search
+/dicom, /dicom1, /dicom2, and /data0/rt to try and find the relevant scans to
+upload. 
+
+If called with PROJ and SUB, then it will assume you are only uploading medata
+and will check the current directory for files to push. The files must match
+one of the normally uploaded filetypes (i.e., multi-echo concatenated NIFTIs in
+the format run??.e0?.nii, physiological 1D files, scan logs, or other BRIK/HEAD
+files). In this regard, you should likely call this command twice if you are
+suppliny PROJ and SUB arguments: once when in the /dicom/????/medata directory
+and once in the /data0/rt/E???? directory.
+
+Maintainer: rdm222@cornell.edu
+"""
+
+from __future__ import division, absolute_import, print_function, unicode_literals
+import os
+import os.path as op
+import glob
+import shutil
+import re
+import subprocess
+import requests.packages.urllib3
+import netrc
+from datetime import datetime
+import pydicom as dicom
+import pyxnat
+import argparse
+requests.packages.urllib3.disable_warnings()
+
+
+def get_exam_paths(directory):
+    """Returns all exams in `directory`
+
+    Parameters
+    ----------
+    directory : str
+
+    Returns
+    -------
+    list : exams in `directory`
+    """
+
+    return [op.join(directory,d) for d in os.listdir(directory) if
+            op.isdir(op.join(directory,d)) and op.basename(d).isdigit()]
+
+
+def get_dicom_subj(exam):
+    """Returns XNAT project/subject ID for `exam`
+
+    Parameters
+    ----------
+    exam : str
+        Full path to exam (assumes in /dicom if only exam # provided)
+
+    Returns
+    -------
+    (str, str) : (project ID, subject ID)
+    """
+
+    if op.dirname(exam.rstrip('/')) == '': exam = op.join('/dicom',exam)
+
+    try: ds = dicom.read_file(glob.glob(op.join(exam,'0001','*dcm'))[0])
+    except:
+        print("   Cannot find an appropriate DICOM file.")
+        return '', ''
+
+    try: subj_id, proj_id = ds[0x0010,0x0020].value, ds[0x0008,0x1030].value
+    except KeyError: return '', ''
+
+    if proj_id == 'CCPFOC': proj_id = 'PFOC'
+    if proj_id == 'DASV': proj_id = 'DASVBB'
+    if ' ' in subj_id: subj_id.replace(' ','_')
+
+    return proj_id, subj_id
+
+
+def get_xnat_subj(subj_id, project):
+    """Checks all subjects in `project` for matching `subj_id`
+
+    Will also search experiments of each subject in `project` in case subject
+    labels were changed manually by experimenter.
+
+    Parameters
+    ----------
+    subj_id : str
+    project : pyxnat.core.resources.Project
+
+    Returns
+    -------
+    str : subject in `project` that matches `subj_id`
+    """
+
+    if project.subject(subj_id).exists():
+        return subj_id
+
+    for sub in list(project.subjects().get()):
+        curr_subj = project.subject(sub)
+        try:
+            exp_acc = curr_subj.experiments().get()[0]
+            curr_exp = curr_subj.experiment(exp_acc).label()
+        except IndexError:
+            continue
+        for l in [curr_subj.label(), curr_exp]:
+            if l == subj_id: return curr_subj.label()
+
+    return ''
+
+
+def check_for_scan_logs(subject):
+    """Checks if any scans for `subject` have a Scan_log resource
+
+    Parameters
+    ----------
+    subject : pyxnat.core.resources.Subject
+
+    Returns
+    -------
+    bool : whether any scan in experiment has Scan_log (i.e., was uploaded)
+    """
+
+    if type(subject) != pyxnat.core.resources.Subject:
+        raise TypeError("Check input type; must be pyxnat Subject.")
+
+    exp = subject.experiment(subject.experiments().get()[0])
+
+    for scan in list(exp.scans().get()):
+        if exp.scan(scan).resource('Scan_log').exists():
+            return True
+
+    return False
+
+
+def nifticonversion(directory):
+    """Converts all BRIK/HEAD files in given directory to NIFTI
+
+    Parameters
+    -----------
+    directory : str
+        Path to data directory
+    """
+
+    files = glob.glob(op.join(directory,'*BRIK'))
+
+    for f in files:
+        with open(os.devnull,'w') as FNULL:
+            retcode = subprocess.call(['3dAFNItoNIFTI',
+                                       '-prefix',
+                                       f.split('+')[0], f],
+                                      stdout=FNULL,
+                                      stderr=subprocess.STDOUT)
+        if retcode != 0:
+            print("Unable to convert {0} to nifti format".format(f))
+
+
+def upload_medata(xnat, project, subject):
+    """Upload provided subject data to XNAT
+
+    For use in uploading medata scans that no longer exist on AFNIPC.
+
+    xnat : pyxnat.Interface
+    project : str
+        Project ID on XNAT
+    subject : str
+        Subject ID on XNAT
+    """
+
+    if not xnat.select('/project/{0}/subject/{1}'.format(project, subject)).exists():
+        raise Exception("This subject doesn't exist on XNAT! "+
+                        "Make sure you've input the project and subject ID "+
+                        "correctly.")
+
+    upload_type(glob.glob(op.join(os.getcwd(),'run??.e??.nii*')), r'run*(\d+)',
+                'Multi-Echo_data', 'nii', project, subject, xnat)
+
+    nifticonversion(os.getcwd())
+    upload_type(glob.glob(op.join(os.getcwd(),'*_scan_*.nii')), r'scan_*(\d+)',
+                'NIFTI', 'nii', project, subject, xnat)
+    upload_type(glob.glob(op.join(os.getcwd(),'*epiRTme*.1D')), r'scan_*(\d+)',
+                'Physio_Log', '1D', project, subject, xnat)
+    upload_type(glob.glob(op.join(os.getcwd(),'scan_*')), r'scan_*(\d+)',
+                'Scan_log', '1D', project, subject, xnat)
+
+
+def upload_type(files, globform, resource_name, fformat,
+                project_name, subject_id, xnat):
+    """Uploads all `files` to xnat
+
+    Parameters
+    -----------
+    files : list
+    globform : str
+    project_name : str
+    subject_id : str
+    resource_name : str
+    fformat : str
+    xnat : pyxnat.Interface
+    """
+
+    for f in files:
+        try:
+            filename = op.basename(f)
+            scan_id = re.findall(globform, filename)[0].lstrip('0')
+            upload_file(project_name, subject_id, scan_id, resource_name,
+                        filename, f, fformat, xnat)
+        except:
+            print('Error in uploading file: {1}'.format(f))
+
+
+def upload_file(project_name, subject_id, scan_id, resource_name, filename,
+                full_filepath, fformat, xnat):
+    """Uploads a file to XNAT
+
+    Parameters
+    -----------
+    project_name : str
+    subject_id : str
+    scan_id : str
+    resource_name : str
+    filename : str
+    full_filepath : str
+    fformat : str
+    xnat : pyxnat.Interface
+    """
+
+    experiment_id = xnat.select('/project/{}'.format(project_name)  +
+                                '/subject/{}'.format(subject_id)    +
+                                '/experiments/*').get()[0]
+
+    f = xnat.select('/project/{}'.format(project_name)      +
+                    '/subject/{}'.format(subject_id)        +
+                    '/experiment/{}'.format(experiment_id)  +
+                    '/scan/{}'.format(scan_id)              +
+                    '/resource/{}'.format(resource_name)    +
+                    '/file/{}'.format(filename))
+
+    if f.exists(): f.delete()
+    f.put(full_filepath, format=fformat, quality='usable')
+
+
+def upload_data(xnat, exam, test=False, ddir='/dicom'):
+    """Uploads auxilliary data for given `exam` to `xnat` instance
+
+    Parameters
+    ----------
+    xnat : pyxnat.Interface
+    exam : str
+        Full path to exam (assumes in /dicom if only exam # provided)
+    subj_id : str
+        Current subject identifier on XNAT
+    """
+
+    # confirm exam is in right form
+    if op.dirname(exam.rstrip('/')) == '':
+        exam = op.join(ddir,exam.rstrip('/'))
+
+    # get data paths
+    medata = op.join(exam,'medata')
+    auxdata = op.join('/data0','rt','E{0}'.format(op.basename(exam)))
+    tmp_auxdata = op.join('/data2','tmp_data','E{0}'.format(op.basename(exam)))
+    tmp_medata = op.join(tmp_auxdata,'medata')
+
+    project_name, part_id = get_dicom_subj(exam)
+    xnat_proj = xnat.select('/project/{0}'.format(project_name))
+
+    print('Confirming XNAT project {0} exists...'.format(project_name))
+    if not xnat_proj.exists():
+        print("WARNING: Subject {0} doesn't belong on XNAT.\n".format(part_id))
+        return 0
+
+    subj_id = get_xnat_subj(part_id, xnat_proj)
+    if subj_id == '':
+        print('WARNING: Subject not found.'.format(part_id))
+        return 1
+
+    print('Uploading {0} to project {1}.'.format(part_id, project_name))
+
+    # if we just want to get exam #s instead of upload the data
+    if test: return 2
+
+    # copy data over to temporary directory
+    try: shutil.copytree(auxdata, tmp_auxdata)
+    except:
+        print('Failed to copy {0} to temp.'.format(auxdata))
+        return 1
+
+    if op.exists(medata):
+        try: shutil.copytree(medata, tmp_medata)
+        except:
+            print('Failed to copy {0} to temp.'.format(medata))
+            return 1
+    else:
+        os.mkdir(tmp_medata)
+
+    # convert to NIFTIs
+    print('Converting BRIK/HEAD files to NIFTI format.')
+    nifticonversion(tmp_auxdata)
+
+    # upload files
+    print('Uploading files to XNAT.')
+    upload_type(glob.glob(op.join(tmp_auxdata,'*.nii')), r'scan_*(\d+)',
+                'NIFTI', 'nii', project_name, subj_id, xnat)
+    upload_type(glob.glob(op.join(tmp_auxdata,'*.1D')), r'scan_*(\d+)',
+                'Physio_Log', '1D', project_name, subj_id, xnat)
+    upload_type(glob.glob(op.join(tmp_auxdata,'scan*')), r'scan_*(\d+)',
+                'Scan_log', '1D', project_name, subj_id, xnat)
+    upload_type(glob.glob(op.join(tmp_medata,'run*nii*')), r'run*(\d+)',
+                'Multi-Echo_data', 'nii', project_name, subj_id, xnat)
+
+    # remove temporary directory
+    print('Finished uploading files to XNAT! Removing tempdir.')
+    shutil.rmtree(tmp_auxdata)
+
+    return 2
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Upload auxilliary data to '+
+                                     'XNAT.')
+    parser.add_argument('exam',
+                        help='Exam ID to push to XNAT.')
+    parser.add_argument('--directory',default='/dicom',
+		        help='Dicom directory that exam is stored in.')
+    parser.add_argument('--project',
+                        help='Project on XNAT')
+    parser.add_argument('--subject',
+                        help='Subject ID on XNAT')
+    parser.add_argument('-q','--quiet',action='store_true',
+                        help='Suppress progress messages.')
+    params = vars(parser.parse_args())
+
+    tmp_folder = '/data2/tmp_data'
+    SERVER = 'https://hd-hni-xnat.cac.cornell.edu:8443/xnat'
+    user_info = netrc.netrc()
+    uid, acct, passw = user_info.authenticators(SERVER)
+
+    xnat = pyxnat.Interface(server=SERVER,
+                            user=uid,
+                            password=passw,
+                            cachedir=tmp_folder)
+
+    if params['project'] and params['subject']:
+        project, subject = params['project'], params['subject']
+        if not params['quiet']:
+            print("Uploading subject {0} to project {1} on XNAT.".format(subject, project))
+        success = upload_medata(xnat, project, subject)
+        if success == 2:
+            print('SUCCESS: Succesfully uploaded subject to XNAT.\n')
+        elif success == 1:
+            print('ERROR: Failed to upload subject to XNAT.\n')
+    else:
+        if not params['quiet']:
+            print("Pushing exam {0} to XNAT.".format(params['exam']))
+        success = upload_data(xnat, params['exam'], ddir=params['directory'])
+        if success == 2:
+            print('SUCCESS: Succesfully uploaded exam {0} to XNAT.\n'.format(params['exam']))
+        elif success == 1:
+            print('ERROR: Failed to upload exam {0} to XNAT.\n'.format(params['exam']))
