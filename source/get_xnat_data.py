@@ -155,18 +155,18 @@ def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
             try:
                 # Specify a subdirectory in which to place zip contents, using
                 #   the base name of the zip file as the directory name.
-                aux_path = os.path.join(aux_path, os.path.splitext(os.path.basename(auxiliary_filename))[0])
-                if not os.path.exists(aux_path):
-                    logging.info('++ Unzipping auxiliary file to {aux_path}.'.format(aux_path=aux_path))
+                temp_unzip_path = os.path.join(aux_path, os.path.splitext(os.path.basename(auxiliary_filename))[0])
+                if not os.path.exists(temp_unzip_path):
+                    logging.info('++ Unzipping auxiliary file to {temp_unzip_path}.'.format(temp_unzip_path=temp_unzip_path))
                     # Prepare to unzip aux file
                     fzip = zipfile.ZipFile(fetched_auxiliary_files[auxiliary_filename], 'r')
                     # Attempt to unzip file into subdirectory of base subject path
-                    fzip.extractall(path=aux_path)
+                    fzip.extractall(path=temp_unzip_path)
                     fzip.close()
                     # If unzipping appears to be successful, remove zip file
                     os.remove(fetched_auxiliary_files[auxiliary_filename])
                 else:
-                    logging.info('++ Skipping unzip of auxiliary file to {aux_path} because that path already exists.'.format(aux_path=aux_path))
+                    logging.info('++ Skipping unzip of auxiliary file to {temp_unzip_path} because that path already exists.'.format(temp_unzip_path=temp_unzip_path))
             except:
                 logging.critical('++ WARNING: Failed to unzip auxiliary file {aux_file}.'.format(aux_file=auxiliary_filename))
                 traceback.print_exc()
