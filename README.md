@@ -2,7 +2,6 @@
 A set of utilities for fetching MRI data from an XNAT server, and doing some organization and preprocessing of the files.
 
 ## Known issues
-* --exclude-file and --exclude-list do not work
 * -k switch to delete concatenated dicoms is not implemented
 
 ## Planned upgrades

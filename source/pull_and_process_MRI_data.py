@@ -10,7 +10,7 @@
 ## !/bin/bash -l
 
 # This script is designed to
-# 1. Pull MRI data from an XNAT server
+# 1. Pull MRI data from an XNAT server and organize them
 # 2. Process the MRI data to transform DICOM files into multi-echo
 
 import os
