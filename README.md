@@ -3,9 +3,12 @@ A set of utilities for fetching MRI data from an XNAT server, and doing some org
 
 ## Known issues
 * -k switch to delete concatenated dicoms is not implemented
+* Error in one subject stops entire process
+* Aux files in subdirectories fail to download.
+* If a subject has multiple exams, only one is downloaded
 
 ## Planned upgrades
-* Make script automatically skip multiecho concatenation if appropriate nifti files already exist
+* Make script automatically skip multiecho concatenation if appropriate nifti files already exist, and skip re-downloading auxiliary files
 * Possibly pull data from XNAT in parallel to speed up (concatenation is already partially in parallel)
 * Possibly make this code play nicely with SLURM for speed
 * Add ability to specify data output directory, so it doesn't always dump to the current working dir
