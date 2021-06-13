@@ -27,8 +27,8 @@ import time
 import re
 import shutil
 import logging
-    # Older version of pydicom library used to import simply as "dicom"
 try:
+    # Older version of pydicom library used to import simply as "dicom"
     import pydicom as dicom
 except ImportError:
     logging.critical('Module not found. If you should be in a virtual environment, make sure it has been activated.')
@@ -315,6 +315,19 @@ def call_mdir(scans, exam_dir, echoes=3):
 
     logging.info('Done!\n')
 
+def get_concatenated_filename(scan_name, echo):
+    return 'run{scan_name:04d}.e{echo:02d}'.format(scan_name=int(scan_name), echo=nEcho)
+
+def is_concatenated(me_dir, scan_name, echoes):
+    # Check if scan has been fully concatenated or not
+    for echo in range(echoes):
+        concatenated_filename = get_concatenated_filename(scan_name=scan_name, echo=echo)
+        concatenated_filepath = op.join(me_dir, concatenated_filename)
+        if not os.exists(concatenated_filepath):
+            return False
+    return True
+
+
 def concatenate_subject(subject_dir, echoes=3, delete_dcms=False):
     scan_dirs = get_scan_dirs(exam_dir=subject_dir)
     concatenate_scans(scan_dirs, echoes=echoes, delete_dcms=delete_dcms)
@@ -365,6 +378,10 @@ def concatenate_scan(scan_dir, echoes=3, interactive=True, delete_dcms=False):
         os.mkdir(me_dir)
     except FileExistsError:
         logging.info('Multiecho directory {me_dir} already exists.\n'.format(me_dir=me_dir))
+
+    if is_concatenated(me_dir=me_dir, scan_name=scan_name, echoes=echoes):
+        logging.warning('Skipping concatenation of scan {scan_name} because it already appears to have been concatenated.')
+        return
 
     # Get list of dicom files in scan_dir
     dicom_list = glob.glob(op.join(scan_dir,'*.dcm'))
@@ -449,7 +466,7 @@ def concatenate_scan(scan_dir, echoes=3, interactive=True, delete_dcms=False):
     for nEcho in range(echoes):
         logging.info('Processing echo #{k}/{n}...'.format(k=nEcho, n=echoes))
         # Format the output filename for the nifti files
-        output_filename = 'run{scan_name:04d}.e{echo:02d}'.format(scan_name=int(scan_name), echo=nEcho)
+        output_filename = get_concatenated_filename(scan_name=scan_name, echo=echo)
         # Format the name for some of the temporary files
         gert_filename = 'GERT_Reco_dicom_{scan_name:03d}_e{echo:02d}'.format(scan_name=int(scan_name), echo=nEcho)
         # Create temp dir in which to run this Dimon process, so it doesn't
