@@ -29,6 +29,27 @@ except ModuleNotFoundError:
     logging.critical('***********************************************************')
     sys.exit()
 
+def attempt(errorMsg):
+    # Error message may be a string or a list of strings for a multiline
+    #   message.
+    def actual_decorator(func):
+        def wrapped_func(*args, errorMsg=errorMsg, **kwargs):
+            try:
+                # Attempt to run decorated function
+                return func(*args, **kwargs)
+            except:
+                # If decorated function fails
+                # Log stack trace
+                stack_trace = traceback.format_exc()
+                logging.critical(stack_trace)
+                # Log error message
+                if type(errorMsg) != type([]):
+                    errorMsg = [errorMsg]
+                for msg in errorMsg:
+                    logging.critical(msg)
+        return wrapped_func
+    return actual_decorator
+
 requests.packages.urllib3.disable_warnings()
 
 # Default server info, valid for ACLab in 5/2021
@@ -237,8 +258,8 @@ def pull_data(xnat, target_dir,
         Where data will be downloaded to
     project : str
         Project from which to pull data
-    sub_list : str (filepath)
-        Specifies subjects for whom to pull data
+    sub_list : list of str
+        A list of string subject identifiers, which may include wildcards
     series_keep_list : list of str
         A list specifying which series to pull down (i.e., PCASL, PASL, FLAIR)
     series_skip_list : lsit of str
@@ -289,9 +310,15 @@ def pull_data(xnat, target_dir,
         logging.debug(' - {sname}'.format(sname=proj.subject(s).label()))
 
     # Filter available subject list based on user supplied subject list
-    subjects = [s for s in subjects if
-                ((proj.subject(s).label() in sub_list) or (s in sub_list))]
-    subjects = list(match_subject_dates(proj,subjects,start=start,end=end))
+    subjects = [s for s in subjects if (
+                        any([fnmatch.fnmatch(sub, proj.subject(s).label()) for sub in sub_list]) or
+                        any([fnmatch.fnmatch(sub, s) for sub in sub_list])
+                    )
+                ]
+    subjects = list(match_subject_dates(proj,subjects, start=start, end=end))
+
+    # keep = [f for f in series_keep_list if fnmatch.fnmatch(seriesDescription, f)]
+
 
     # Warn user that no available subjects matched their list
     if len(subjects) == 0:
@@ -448,7 +475,6 @@ def pull_data(xnat, target_dir,
 
     return subject_dirs
 
-
 def match_subject_dates(project, subjects, start=None, end=None):
     """
     Parameters
@@ -576,6 +602,22 @@ def check_for_file(fname):
     return fname
 
 def get_subject_selection_list(sub_list=None, sub_file=None):
+    """
+    Gets a combined list of subject names from the provided sub_list and
+        sub_file
+
+    Parameters
+    ----------
+    sub_list : str
+        String representing a comma-separated list of subject identifiers
+    sub_file : str
+        Path to a file containing a list of subject identifiers, one per line.
+
+    Returns
+    -------
+    list : list of str
+        A list of strings representing subject identifiers.
+    """
     if sub_list is not None:
         sub_list = parse_comma_separated_list(sub_list)
     else:
