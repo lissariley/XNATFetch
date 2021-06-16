@@ -29,27 +29,6 @@ except ModuleNotFoundError:
     logging.critical('***********************************************************')
     sys.exit()
 
-def attempt(errorMsg):
-    # Error message may be a string or a list of strings for a multiline
-    #   message.
-    def actual_decorator(func):
-        def wrapped_func(*args, errorMsg=errorMsg, **kwargs):
-            try:
-                # Attempt to run decorated function
-                return func(*args, **kwargs)
-            except:
-                # If decorated function fails
-                # Log stack trace
-                stack_trace = traceback.format_exc()
-                logging.critical(stack_trace)
-                # Log error message
-                if type(errorMsg) != type([]):
-                    errorMsg = [errorMsg]
-                for msg in errorMsg:
-                    logging.critical(msg)
-        return wrapped_func
-    return actual_decorator
-
 requests.packages.urllib3.disable_warnings()
 
 # Default server info, valid for ACLab in 5/2021
@@ -339,135 +318,141 @@ def pull_data(xnat, target_dir,
     # Loop over subject IDs
     logging.info('+++ Looking for data in {n} subjects...'.format(n=len(subjects)))
     for s in sorted(subjects):
-        # Obtain subject object
-        sub = proj.subject(s)
-        logging.info('++ Getting data for subject {0}'.format(sub.label()))
-
-        # Create directory for subject's data
-        sub_path = os.path.join(target_dir,sub.label())
         try:
-            os.mkdir(sub_path)
-        except FileExistsError:
-            logging.warning('++ Folder for this subject already exists.')
+            # Obtain subject object
+            sub = proj.subject(s)
+            logging.info('++ Getting data for subject {0}'.format(sub.label()))
 
-        # Obtain 1st (and probably only) experiment object in subject
-        try: exp = sub.experiment(sub.experiments().get()[0])
-        except IndexError:
-            logging.info("++ WARNING: Subject data does not exist? Skipping.")
-            continue
-
-        # Warn user if there was more than one experiment for this subject
-        if len(sub.experiments().get()) > 1:
-            logging.critical('++ WARNING: Subject has more than one ' +
-                'experiment, but at present this script is only designed ' +
-                'to fetch data for one experiment per subject. Selecting ' +
-                'only the first experiment for this subject.')
-
-        # Loop over scan IDs
-        for scanName in sorted(exp.scans().get(), key=int):
-            logging.info(' ');
-            logging.info('+  Getting scan #{scan}'.format(scan=scanName))
-
-            # Obtain scan object
-            scan = exp.scan(scanName)
-
-            # Obtain series type/description
-            try: s_descrip = scan.attrs.get('series_description')
-            except: s_descrip = 'FAIL'
-            logging.info('Preparing to load {s_descrip}'.format(s_descrip=s_descrip))
-
-            # # Determine whether or not the user wants this series type
-            # if is_keeper(s_descrip, series_keep_list=series_keep_list, series_skip_list=series_skip_list):
-            #     logging.info('Fetching scan with series description {s_descrip}'.format(s_descrip=s_descrip))
-            # else:
-            #     logging.info('Skipping scan with series description {s_descrip}'.format(s_descrip=s_descrip))
-            #     continue
-
-            # Create folder for scan data
-            scan_path = os.path.join(sub_path,scanName)
+            # Create directory for subject's data
+            sub_path = os.path.join(target_dir,sub.label())
             try:
-                os.mkdir(scan_path)
+                os.mkdir(sub_path)
             except FileExistsError:
-                logging.warning('+ Folder for scan #{scan} already exists.'.format(scan=scanName))
-                if skip_existing:
-                    logging.warning('+ Skipping fetch of scan that already exists.')
-                    continue
-                else:
-                    logging.warning('+ Re-fetching scan that already exists.')
+                logging.warning('++ Folder for this subject already exists.')
 
-            logging.info('+  Scan {0}, {1}'.format(scanName,s_descrip))
+            # Obtain 1st (and probably only) experiment object in subject
+            try: exp = sub.experiment(sub.experiments().get()[0])
+            except IndexError:
+                logging.info("++ WARNING: Subject data does not exist? Skipping.")
+                continue
 
-            # Loop over resources within scan (a resource is a grouping of files)
-            for resName in scan.resources().get():
-                res = scan.resource(resName)
+            # Warn user if there was more than one experiment for this subject
+            if len(sub.experiments().get()) > 1:
+                logging.critical('++ WARNING: Subject has more than one ' +
+                    'experiment, but at present this script is only designed ' +
+                    'to fetch data for one experiment per subject. Selecting ' +
+                    'only the first experiment for this subject.')
 
-                # This is that BIDS thing that we don't use ¯\_(ツ)_/¯
-                if BIDS and res.label() == 'DICOM':
-                    f = res.files().get()[0]
-                    res.file(f).get(os.path.join(scan_path,f))
+            # Loop over scan IDs
+            for scanName in sorted(exp.scans().get(), key=int):
+                logging.info(' ');
+                logging.info('+  Getting scan #{scan}'.format(scan=scanName))
 
-                # Make sure the files within this resource are ones the user
-                #   wants. Not sure why we do this twice, once for the scan,
-                #   and once for each of the resources within the scan.
-                if is_keeper(res.label(), series_keep_list, series_skip_list):
-                    logging.info('Fetching resource with series description {s_descrip}'.format(s_descrip=res.label()))
-                else:
-                    logging.info('Skipping resource with series description {s_descrip}'.format(s_descrip=res.label()))
-                    continue
+                # Obtain scan object
+                scan = exp.scan(scanName)
 
-                # Fetch all scan files in zip archive
-                extracted_paths = res.get(scan_path, extract=True)
-                logging.info('Fetched and extracted {n} files.'.format(n=len(extracted_paths)))
-                extracted_root = os.path.dirname(extracted_paths[0])
-                extracted_files = os.listdir(extracted_root)
+                # Obtain series type/description
+                try: s_descrip = scan.attrs.get('series_description')
+                except: s_descrip = 'FAIL'
+                logging.info('Preparing to load {s_descrip}'.format(s_descrip=s_descrip))
 
-                # Move unzipped files into base scan directory
-                logging.info('Attempting to move unzipped files from temporary directroy to scan directory.')
-                for file_name in extracted_files:
-                    try:
-                        shutil.move(os.path.join(extracted_root, file_name), scan_path)
-                    except shutil.Error:
-                        logging.critical('Filename collision: Could not move extracted file "{file_name}" to scan dir "{scan_path}", probably because it already existed there.'.format(file_name=file_name, scan_path=scan_path))
+                # # Determine whether or not the user wants this series type
+                # if is_keeper(s_descrip, series_keep_list=series_keep_list, series_skip_list=series_skip_list):
+                #     logging.info('Fetching scan with series description {s_descrip}'.format(s_descrip=s_descrip))
+                # else:
+                #     logging.info('Skipping scan with series description {s_descrip}'.format(s_descrip=s_descrip))
+                #     continue
 
-                # If all zipped files were moved to base scan directory, remove the temporary directory. If not, warn the user, and change the temporary directory name to "collisions"
-                remaining_extracted_files = os.listdir(extracted_root)
-                if len(remaining_extracted_files) == 0:
-                    logging.info('Successfully moved all extracted files to scan directory. Removing temporary folder.')
-                    os.rmdir(extracted_root)
-                else:
-                    collision_dir = os.path.join(scan_dir, 'collisions')
-                    logging.critical('Could not move {n} files to scan directory. They will continue to exist in subdirectory {collision_dir}.')
-                    num = 0
-                    while os.path.exists(collision_dir):
-                        collision_dir = os.path.join(scan_dir, 'collisions_{num}'.format(num=num))
-                        num = num + 1
-                    os.rename(extracted_root, collision_dir)
+                # Create folder for scan data
+                scan_path = os.path.join(sub_path,scanName)
+                try:
+                    os.mkdir(scan_path)
+                except FileExistsError:
+                    logging.warning('+ Folder for scan #{scan} already exists.'.format(scan=scanName))
+                    if skip_existing:
+                        logging.warning('+ Skipping fetch of scan that already exists.')
+                        continue
+                    else:
+                        logging.warning('+ Re-fetching scan that already exists.')
 
-                # This was the old way - fetch each file one at a time. It took
-                #   forever, so now we download the whole resource as a zip file
-                # for f in sorted(res.files().get()):
-                #     f_path = os.path.join(scan_path, f)
-                #     logging.debug(' '*3 + os.path.join(sub.label(),scanName,f))
-                #     if not os.path.exists(f_path):
-                #         try:
-                #             logging.info('Fetching file {f}...'.format(f=f))
-                #             res.file(f).get(f_path)
-                #         except:
-                #             logging.warning('   Fetch error, skipping file {f}.'.format(f=f))
-                #     else:
-                #         logging.info('Skipping fetch of file {f} because it already exists.'.format(f=f))
+                logging.info('+  Scan {0}, {1}'.format(scanName,s_descrip))
 
-        # Fetch and organize any requested auxiliary experiment files. If they
-        #   match the provided regex, they will be organized into the scan
-        #   folders
-        fetch_and_organize_aux_files(exp=exp, sub_path=sub_path,
-            aux_file_group_label=aux_file_group_label,
-            aux_files_fetch_list=aux_files_fetch_list,
-            aux_files_unzip_list=aux_files_unzip_list,
-            aux_files_org_regex=aux_files_org_regex,
-            retain_unorganized_aux_files=retain_unorganized_aux_files)
+                # Loop over resources within scan (a resource is a grouping of files)
+                for resName in scan.resources().get():
+                    res = scan.resource(resName)
 
+                    # This is that BIDS thing that we don't use ¯\_(ツ)_/¯
+                    if BIDS and res.label() == 'DICOM':
+                        f = res.files().get()[0]
+                        res.file(f).get(os.path.join(scan_path,f))
 
+                    # Make sure the files within this resource are ones the user
+                    #   wants. Not sure why we do this twice, once for the scan,
+                    #   and once for each of the resources within the scan.
+                    if is_keeper(res.label(), series_keep_list, series_skip_list):
+                        logging.info('Fetching resource with series description {s_descrip}'.format(s_descrip=res.label()))
+                    else:
+                        logging.info('Skipping resource with series description {s_descrip}'.format(s_descrip=res.label()))
+                        continue
+
+                    # Fetch all scan files in zip archive
+                    extracted_paths = res.get(scan_path, extract=True)
+                    logging.info('Fetched and extracted {n} files.'.format(n=len(extracted_paths)))
+                    extracted_root = os.path.dirname(extracted_paths[0])
+                    extracted_files = os.listdir(extracted_root)
+
+                    # Move unzipped files into base scan directory
+                    logging.info('Attempting to move unzipped files from temporary directroy to scan directory.')
+                    for file_name in extracted_files:
+                        try:
+                            shutil.move(os.path.join(extracted_root, file_name), scan_path)
+                        except shutil.Error:
+                            logging.critical('Filename collision: Could not move extracted file "{file_name}" to scan dir "{scan_path}", probably because it already existed there.'.format(file_name=file_name, scan_path=scan_path))
+
+                    # If all zipped files were moved to base scan directory, remove the temporary directory. If not, warn the user, and change the temporary directory name to "collisions"
+                    remaining_extracted_files = os.listdir(extracted_root)
+                    if len(remaining_extracted_files) == 0:
+                        logging.info('Successfully moved all extracted files to scan directory. Removing temporary folder.')
+                        os.rmdir(extracted_root)
+                    else:
+                        collision_dir = os.path.join(scan_dir, 'collisions')
+                        logging.critical('Could not move {n} files to scan directory. They will continue to exist in subdirectory {collision_dir}.')
+                        num = 0
+                        while os.path.exists(collision_dir):
+                            collision_dir = os.path.join(scan_dir, 'collisions_{num}'.format(num=num))
+                            num = num + 1
+                        os.rename(extracted_root, collision_dir)
+
+                    # This was the old way - fetch each file one at a time. It took
+                    #   forever, so now we download the whole resource as a zip file
+                    # for f in sorted(res.files().get()):
+                    #     f_path = os.path.join(scan_path, f)
+                    #     logging.debug(' '*3 + os.path.join(sub.label(),scanName,f))
+                    #     if not os.path.exists(f_path):
+                    #         try:
+                    #             logging.info('Fetching file {f}...'.format(f=f))
+                    #             res.file(f).get(f_path)
+                    #         except:
+                    #             logging.warning('   Fetch error, skipping file {f}.'.format(f=f))
+                    #     else:
+                    #         logging.info('Skipping fetch of file {f} because it already exists.'.format(f=f))
+
+            # Fetch and organize any requested auxiliary experiment files. If they
+            #   match the provided regex, they will be organized into the scan
+            #   folders
+            fetch_and_organize_aux_files(exp=exp, sub_path=sub_path,
+                aux_file_group_label=aux_file_group_label,
+                aux_files_fetch_list=aux_files_fetch_list,
+                aux_files_unzip_list=aux_files_unzip_list,
+                aux_files_org_regex=aux_files_org_regex,
+                retain_unorganized_aux_files=retain_unorganized_aux_files)
+        except:
+            stack_trace = traceback.format_exc()
+            logging.critical(stack_trace)
+            logging.critical('***********************************************************')
+            logging.critical('********* Fetching data failed for subject {sub}! *********'.format(sub=s))
+            logging.critical('***********************************************************')
+            logging.critical('Attempting to continue with remaining subjects...')
 
         # Keep a running log of the list of subject directories for later
         subject_dirs.append(sub_path)

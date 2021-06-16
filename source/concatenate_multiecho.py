@@ -34,6 +34,28 @@ except ImportError:
     logging.critical('Module not found. If you should be in a virtual environment, make sure it has been activated.')
     traceback.print_exc(file=sys.stdout)
 
+def attempt(errorMsg):
+    # Decorator for attempting to run a function, but continuing on error.
+    # Error message may be a string or a list of strings for a multiline
+    #   message.
+    def actual_decorator(func):
+        def wrapped_func(*args, errorMsg=errorMsg, **kwargs):
+            try:
+                # Attempt to run decorated function
+                return func(*args, **kwargs)
+            except:
+                # If decorated function fails
+                # Log stack trace
+                stack_trace = traceback.format_exc()
+                logging.critical(stack_trace)
+                # Log error message
+                if type(errorMsg) != type([]):
+                    errorMsg = [errorMsg]
+                for msg in errorMsg:
+                    logging.critical(msg)
+        return wrapped_func
+    return actual_decorator
+
 # This must be the path to the nii_mdir script for 3-echo scans:
 NII_MDIR_SCRIPT = 'concat_utils/nii_mdir_sdcme'
 # This must be the path to the nii_mdir script for 2-echo scans:
@@ -289,6 +311,13 @@ def concatenate_scans(scan_dirs, echoes=3, interactive=True, delete_dcms=False):
 def get_slice_index(dcm_file):
     return dicom.dcmread(dcm_file, specific_tags=[(0x0019,0x10a2)]).get((0x0019, 0x10a2)).value
 
+concatenateFailMsg = '''
+*************************************************************
+***** Unexpected error concatenating scan! Moving on... *****
+*************************************************************
+'''
+
+@attempt(concatenateFailMsg)
 def concatenate_scan(scan_dir, echoes=3, interactive=True, delete_dcms=False):
     """Concatenates ME `scans` for `exam` into NIFTI format
 
