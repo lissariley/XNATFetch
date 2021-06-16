@@ -290,8 +290,8 @@ def pull_data(xnat, target_dir,
 
     # Filter available subject list based on user supplied subject list
     subjects = [s for s in subjects if (
-                        any([fnmatch.fnmatch(sub, proj.subject(s).label()) for sub in sub_list]) or
-                        any([fnmatch.fnmatch(sub, s) for sub in sub_list])
+                        any([fnmatch.fnmatch(proj.subject(s).label(), sub) for sub in sub_list]) or
+                        any([fnmatch.fnmatch(s, sub) for sub in sub_list])
                     )
                 ]
     subjects = list(match_subject_dates(proj,subjects, start=start, end=end))
