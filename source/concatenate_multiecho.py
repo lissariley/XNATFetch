@@ -260,61 +260,6 @@ def make_complete(exam_dir, echoes=3, interactive=True, multiEchoSubDir=ME_SUBDI
     else:
         logging.info('No missed scans!')
 
-    # # create file specifying whether concatenation was success or failed
-    # # also create files specifying if any runs are incomplete
-    # if op.exists(op.join(exams_dir, exam, multiEchoSubDir)):
-    #     with open(op.join(exams_dir, exam, multiEchoSubDir, name),'w') as source:
-    #         pass
-    #     for scan in incomplete:
-    #         temp = '.incomplete_run{0}'.format(str(scan).zfill(2))
-    #         with open(op.join(exams_dir, exam, multiEchoSubDir, temp),'w') as source:
-    #             pass
-
-def call_mdir(scans, exam_dir, echoes=3):
-    """Calls subprocess to concatenate ME scans in `scans`
-
-    Assumes you are already in the appropriate exam directory! Please make
-    sure you're already in the appropriate exam directory...
-
-    Parameters
-    ----------
-    scans : list
-        Scan #s to be concatenated
-    exam_dir : str (path)
-        path
-    echoes : int
-        How many echoes there should be for scans in `scans`
-    """
-
-    concat_path = op.join(__file__, 'concat_utils')
-    if echoes == 2:
-        concat_script = NII_MDIR2_SCRIPT
-    elif echoes == 3:
-        concat_script = NII_MDIR_SCRIPT
-    else:
-        # we only have command-line scripts for concatenting 2- and 3-echo scans
-        raise ValueError("Echoes must be 2 or 3.")
-
-    FNULL = open(os.devnull, 'w')
-
-    # iterate through scans
-    for scan in scans:
-        # print progress statement
-        logging.info('Concatenating images for scan {scanNum}.'.format(scanNum = scan))
-        logging.debug('\nCurrent __file__:\n')
-        logging.debug(__file__+'\n')
-        logging.debug('os.cwd = \n')
-        logging.debug(os.getcwd()+'\n')
-
-        # call concatenation script on each successive scan
-        subprocess.Popen([concat_script, str(scan), str(scan)],
-                        stdout=FNULL, stderr=subprocess.STDOUT)
-
-    # close /dev/null redirect pipe
-    FNULL.close()
-
-    logging.info('Done!\n')
-
 def get_concatenated_filename(scan_name, echo):
     return 'run{scan_name:04d}.e{echo:02d}'.format(scan_name=int(scan_name), echo=nEcho)
 
@@ -326,7 +271,6 @@ def is_concatenated(me_dir, scan_name, echoes):
         if not os.exists(concatenated_filepath):
             return False
     return True
-
 
 def concatenate_subject(subject_dir, echoes=3, delete_dcms=False):
     scan_dirs = get_scan_dirs(exam_dir=subject_dir)
