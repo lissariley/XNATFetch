@@ -17,7 +17,6 @@ import unicodedata
 try:
     # Attempt to load non-standard libraries
     import dateutil.parser
-    # import numpy as np
     from pyxnat import Interface
 except ModuleNotFoundError:
     # Alert user that they may have forgotten to load a virtualenvironment
@@ -631,8 +630,8 @@ def check_for_file(fname):
 
 def get_subject_selection_list(sub_list=None, sub_file=None):
     """
-    Gets a combined list of subject names from the provided sub_list and
-        sub_file
+    Gets a combined list of subject names/patterns from the provided sub_list
+        and sub_file. If both sub_list and sub_file are None, default is "*"
 
     Parameters
     ----------
@@ -646,6 +645,8 @@ def get_subject_selection_list(sub_list=None, sub_file=None):
     list : list of str
         A list of strings representing subject identifiers.
     """
+    if (sub_list is None) and (sub_file is None):
+        return "*"
     if sub_list is not None:
         sub_list = parse_comma_separated_list(sub_list)
     else:
@@ -897,9 +898,17 @@ if __name__ == "__main__":
                         'who were scanned before this date. Only ISO 8601 '   +
                         'format will be acknowledged (YYYY-MM-DD). Can be '   +
                         'used in conjunction with -s to specify a date range.')
-    parser.add_argument('--sub-list', dest='sub_list', metavar='file',
+    parser.add_argument('--sub-list', dest='sub_list', metavar='list',
+                        default=None, help='Comma-separated list of subjects '+
+                        'to get data for. Note that this is cumulative with ' +
+                        '--sub-file, and that if --sub-list and --sub-file '  +
+                        'are both omitted, ALL subjects will be pulled'       )
+    parser.add_argument('--sub-file', dest='sub_file', metavar='file',
                         default=None, help='Text file specifying subjects to '+
-                        'get data for. Default: pull all subjects'            )
+                        'get data for. File should contain one subject per '  +
+                        'line. Note that this is  cumulative with --sub-list. '+
+                        'If --sub-file and --sub-list are both omitted, ALL ' +
+                        'subjects will be pulled'                             )
     parser.add_argument('--include-file', dest='include_file', metavar='file',
                         default=None, help='Text file specifying series '     +
                         'description for data to download. Default: download '+
@@ -969,6 +978,7 @@ if __name__ == "__main__":
         port=params['xnat_port'],
         path=params['xnat_path'],
         sub_list=params['sub_list'],
+        sub_file=params['sub_file'],
         include_list=params['include_list'],
         exclude_list=params['exclude_list'],
         include_file=params['include_file'],

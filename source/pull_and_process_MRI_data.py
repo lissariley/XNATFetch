@@ -141,17 +141,15 @@ python pull_and_process_MRI_data.py -u JaneDoe --sub-file subsToGet.txt --includ
                         'used in conjunction with -s to specify a date range.')
     parser.add_argument('--sub-list', dest='sub_list', metavar='list',
                         default=None, help='Comma-separated list of subjects '+
-                        'to get data for. Default: pull all subjects. Note '  +
-                        'that this is cumulative with --sub-file. If '        +
-                        '--sub-file and --sub-list are both omitted, ALL '    +
-                        'subjects will be pulled'                             )
+                        'to get data for. Note that this is cumulative with ' +
+                        '--sub-file, and that if --sub-list and --sub-file '  +
+                        'are both omitted, ALL subjects will be pulled'       )
     parser.add_argument('--sub-file', dest='sub_file', metavar='file',
                         default=None, help='Text file specifying subjects to '+
                         'get data for. File should contain one subject per '  +
-                        'line. Default: pull all subjects. Note that this is '+
-                        ' cumulative with --sub-list.  If --sub-file and '    +
-                        '--sub-list are both omitted, ALL subjects will be '  +
-                        'pulled'                                              )
+                        'line. Note that this is  cumulative with --sub-list. '+
+                        'If --sub-file and --sub-list are both omitted, ALL ' +
+                        'subjects will be pulled'                             )
     parser.add_argument('--include-file', dest='include_file', metavar='file',
                         default=None, help='Text file specifying series '     +
                         'description for data to download. Default: download '+
