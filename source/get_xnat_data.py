@@ -230,7 +230,7 @@ def pull_data(xnat, target_dir,
               start=None, end=None, aux_files_fetch_list=['E*.zip', 'P*.zip'],
               aux_files_unzip_list=['E*.zip'], aux_files_org_regex='_scan_([0-9]+)',
               retain_unorganized_aux_files=True, aux_file_group_label='auxiliaryfiles',
-              verbose=0, BIDS=False, skip_existing=True):
+              verbose=0, BIDS=False, overwrite_existing=False):
     """
     Grabs all relevant project data from HD-HNI XNAT instance
 
@@ -376,9 +376,12 @@ def pull_data(xnat, target_dir,
                     os.mkdir(scan_path)
                 except FileExistsError:
                     logging.warning('+ Folder for scan #{scan} already exists.'.format(scan=scanName))
-                    if skip_existing:
-                        logging.warning('+ Skipping fetch of scan that already exists.')
-                        continue
+                    if not overwrite_existing:
+                        if len(os.listdir(scan_path)) == 0:
+                            logging.warning('+ Fetching scan anyways, because that scan directory appears to be empty.')
+                        else:
+                            logging.warning('+ Skipping fetch of scan that already exists.')
+                            continue
                     else:
                         logging.warning('+ Re-fetching scan that already exists.')
 
@@ -922,9 +925,9 @@ if __name__ == "__main__":
                         help='Organize data into BIDS format immediately '    +
                         'after download. THIS FEATURE IS IN BETA -- use at '  +
                         'your own risk! Default: off'                         )
-    parser.add_argument('-k', dest='skip_existing', action='store_true',
-                        default=True, help='Skip fetching scan folders that ' +
-                        'already exist. Default: True'                        )
+    parser.add_argument('-o', dest='overwrite_existing', action='store_true',
+                        default=False, help='Re-fetch and overwrite scan '    +
+                        'folders and other resources that already exist.'     )
     params = vars(parser.parse_args())
 
     get_data(params['user'],
@@ -942,7 +945,7 @@ if __name__ == "__main__":
         start=params['start'],
         end=params['end'],
         # all_data=params['all_data'],
-        skip_existing=params['skip_existing'],
+        overwrite_existing=params['overwrite_existing'],
         aux_files_fetch_list=params['aux_files_fetch_list'],
         aux_files_unzip_list=params['aux_files_unzip_list'],
         aux_files_org_regex=params['aux_files_org_regex'],

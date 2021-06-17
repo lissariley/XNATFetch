@@ -59,7 +59,7 @@ def main():
                                 start=params['start'],
                                 end=params['end'],
                                 # all_data=params['all_data'],
-                                skip_existing=params['skip_existing'],
+                                overwrite_existing=params['overwrite_existing'],
                                 aux_files_fetch_list=params['aux_files_fetch_list'],
                                 aux_files_unzip_list=params['aux_files_unzip_list'],
                                 aux_files_org_regex=params['aux_files_org_regex'],
@@ -214,9 +214,9 @@ python pull_and_process_MRI_data.py -u JaneDoe --sub-file subsToGet.txt --includ
                         dest='delete_dcms', help='Auto-delete downloaded '    +
                         'DICOM files after they have been combined into '     +
                         'multiecho nii files.'                                )
-    parser.add_argument('-k', dest='skip_existing', action='store_true',
-                        default=True, help='Skip fetching scan folders that ' +
-                        'already exist. Default: True'                        )
+    parser.add_argument('-o', dest='overwrite_existing', action='store_true',
+                        default=False, help='Re-fetch and overwrite scan '    +
+                        'folders and other resources that already exist.'     )
     params = vars(parser.parse_args())
     return params
 
