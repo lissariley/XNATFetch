@@ -297,7 +297,7 @@ def pull_data(xnat, target_dir,
 
     Returns
     -------
-    list : list of subject directory paths
+    list : list of subject experiment directory paths
     """
 
     # Obtain project object
@@ -305,9 +305,9 @@ def pull_data(xnat, target_dir,
     # Obtain list of available subject IDs
     subjects = proj.subjects().get()
 
-    logging.debug('Found {n} subjects in this project:'.format(n=len(subjects)))
+    logging.debug('+ Found {n} subjects in this project:'.format(n=len(subjects)))
     for s in subjects:
-        logging.debug(' - {sname}'.format(sname=proj.subject(s).label()))
+        logging.debug('++ {sname}'.format(sname=proj.subject(s).label()))
 
     # Filter available subject list based on user supplied subject list
     subjects = [s for s in subjects if (
@@ -322,21 +322,23 @@ def pull_data(xnat, target_dir,
 
     # Warn user that no available subjects matched their list
     if len(subjects) == 0:
-        logging.warning("No subjects found that match criteria - please check that you've specified valid subjects.")
+        logging.critical("+ No subjects found that match criteria - please check that you've specified valid subjects.")
+    else:
+        logging.info("+ Found {n} subject(s) that matched criteria.".format(n=len(subjects)))
 
     # if all_data < 1: series_skip_list.extend(['ASSET calibration', '3-Plane-Loc'])
     # if all_data < 2: series_skip_list.extend(['DICOM', 'SNAPSHOTS'])
 
-    logging.info('Sub include list:')
-    logging.info(sub_list)
-    logging.info('Matching subjects found:')
-    logging.info(subjects)
-    logging.info('Ignored list:')
-    logging.info(series_skip_list)
-    logging.info('keep list:')
-    logging.info(series_keep_list)
+    logging.info('++ Sub include list:')
+    logging.info('++ ' + str(sub_list))
+    logging.info('++ Matching subjects found:')
+    logging.info('++ ' + str(subjects))
+    logging.info('++ Series type ignore list:')
+    logging.info('++ ' + str(series_skip_list))
+    logging.info('++ Series type keep list:')
+    logging.info('++ ' + str(series_keep_list))
 
-    subject_dirs = []
+    exp_dirs = []
 
     # Loop over subject IDs
     logging.info('+ Looking for data in {n} subjects...'.format(n=len(subjects)))
@@ -358,15 +360,15 @@ def pull_data(xnat, target_dir,
 
             # Warn user if there was more than one experiment for this subject
             if len(experiment_ids) > 1:
-                logging.critical('++ WARNING: Subject has more than one ' +
-                    'experiment. First experiment will be put in base '   +
-                    'subject folder. Other experiments will be put in marked subfolders.')
+                logging.critical('+++ WARNING: Subject has more than one experiment.')
+                logging.critical('+++  First experiment will be put in base subject folder.')
+                logging.critical('+++  Other experiments will be put in marked subfolders.')
 
             for exp_num, exp_id in enumerate(experiment_ids):
                 # If there are more than one experiment in this subject, inform
                 #   the user of how we're doing on them.
                 if len(experiment_ids) > 1:
-                    logging.critical('++ Fetching experiment #{k} of {n} for this subject.'.format(k=exp_num+1, n=len(experiment_ids)))
+                    logging.critical('+++ Fetching experiment #{k} of {n} for this subject.'.format(k=exp_num+1, n=len(experiment_ids)))
 
                 # Attempt to obtain the experiment object. If that fails, move on.
                 try: exp = sub.experiment(exp_id)
@@ -385,7 +387,7 @@ def pull_data(xnat, target_dir,
                 # Loop over scan IDs
                 for scanName in sorted(exp.scans().get(), key=int):
                     logging.info(' ');
-                    logging.info('+  Getting scan #{scan}'.format(scan=scanName))
+                    logging.info('+++ Getting scan #{scan}'.format(scan=scanName))
 
                     # Obtain scan object
                     scan = exp.scan(scanName)
@@ -393,7 +395,7 @@ def pull_data(xnat, target_dir,
                     # Obtain series type/description
                     try: s_descrip = scan.attrs.get('series_description')
                     except: s_descrip = 'FAIL'
-                    logging.info('Preparing to load {s_descrip}'.format(s_descrip=s_descrip))
+                    logging.info('++++ Preparing to load {s_descrip}'.format(s_descrip=s_descrip))
 
                     # # Determine whether or not the user wants this series type
                     # if is_keeper(s_descrip, series_keep_list=series_keep_list, series_skip_list=series_skip_list):
@@ -407,17 +409,17 @@ def pull_data(xnat, target_dir,
                     try:
                         os.mkdir(scan_path)
                     except FileExistsError:
-                        logging.warning('+ Folder for scan #{scan} already exists.'.format(scan=scanName))
+                        logging.warning('++++ Folder for scan #{scan} already exists.'.format(scan=scanName))
                         if not overwrite_existing:
                             if len(os.listdir(scan_path)) == 0:
-                                logging.warning('+ Fetching scan anyways, because that scan directory appears to be empty.')
+                                logging.warning('+++++ Fetching scan anyways, because that scan directory appears to be empty.')
                             else:
-                                logging.warning('+ Skipping fetch of scan that already exists.')
+                                logging.warning('+++++ Skipping fetch of scan that already exists.')
                                 continue
                         else:
-                            logging.warning('+ Re-fetching scan that already exists.')
+                            logging.warning('+++++ Re-fetching scan that already exists.')
 
-                    logging.info('+  Scan {0}, {1}'.format(scanName, s_descrip))
+                    logging.info('++++ Querying resources in scan {0} (type {1})'.format(scanName, s_descrip))
 
                     # Loop over resources within scan (a resource is a grouping of files)
                     for resName in scan.resources().get():
@@ -432,33 +434,33 @@ def pull_data(xnat, target_dir,
                         #   wants. Not sure why we do this twice, once for the scan,
                         #   and once for each of the resources within the scan.
                         if is_keeper(res.label(), series_keep_list, series_skip_list):
-                            logging.info('Fetching resource with series description {s_descrip}'.format(s_descrip=res.label()))
+                            logging.info('+++++ Fetching resource with series description {s_descrip}'.format(s_descrip=res.label()))
                         else:
-                            logging.info('Skipping resource with series description {s_descrip}'.format(s_descrip=res.label()))
+                            logging.info('+++++ Skipping resource with series description {s_descrip}'.format(s_descrip=res.label()))
                             continue
 
                         # Fetch all scan files in zip archive
                         extracted_paths = res.get(scan_path, extract=True)
-                        logging.info('Fetched and extracted {n} files.'.format(n=len(extracted_paths)))
+                        logging.info('+++++ Fetched and extracted {n} files.'.format(n=len(extracted_paths)))
                         extracted_root = os.path.dirname(extracted_paths[0])
                         extracted_files = os.listdir(extracted_root)
 
                         # Move unzipped files into base scan directory
-                        logging.info('Attempting to move unzipped files from temporary directroy to scan directory.')
+                        logging.info('+++++ Attempting to move unzipped files from temporary directroy to scan directory.')
                         for file_name in extracted_files:
                             try:
                                 shutil.move(os.path.join(extracted_root, file_name), scan_path)
                             except shutil.Error:
-                                logging.critical('Filename collision: Could not move extracted file "{file_name}" to scan dir "{scan_path}", probably because it already existed there.'.format(file_name=file_name, scan_path=scan_path))
+                                logging.critical('+++++ Filename collision: Could not move extracted file "{file_name}" to scan dir "{scan_path}", probably because it already existed there.'.format(file_name=file_name, scan_path=scan_path))
 
                         # If all zipped files were moved to base scan directory, remove the temporary directory. If not, warn the user, and change the temporary directory name to "collisions"
                         remaining_extracted_files = os.listdir(extracted_root)
                         if len(remaining_extracted_files) == 0:
-                            logging.info('Successfully moved all extracted files to scan directory. Removing temporary folder.')
+                            logging.info('++++ Successfully moved all extracted files to scan directory. Removing temporary folder.')
                             os.rmdir(extracted_root)
                         else:
                             collision_dir = os.path.join(scan_dir, 'collisions')
-                            logging.critical('Could not move {n} files to scan directory. They will continue to exist in subdirectory {collision_dir}.')
+                            logging.critical('++++ Could not move {n} files to scan directory. They will continue to exist in subdirectory {collision_dir}.')
                             num = 0
                             while os.path.exists(collision_dir):
                                 collision_dir = os.path.join(scan_dir, 'collisions_{num}'.format(num=num))
@@ -491,16 +493,16 @@ def pull_data(xnat, target_dir,
         except:
             stack_trace = traceback.format_exc()
             logging.critical(stack_trace)
-            logging.critical('***********************************************************')
-            logging.critical('********* Fetching data failed for subject {sub}! *********'.format(sub=s))
-            logging.critical('***********************************************************')
-            logging.critical('Attempting to continue with remaining subjects...')
+            logging.critical('++ ***********************************************************')
+            logging.critical('++ ********* Fetching data failed for subject {sub}! *********'.format(sub=s))
+            logging.critical('++ ***********************************************************')
+            logging.critical('++ Attempting to continue with remaining subjects...')
 
         # Keep a running log of the list of subject directories for later
-        subject_dirs.append(sub_path)
+        exp_dirs.append(exp_path)
         logging.info('\n')
 
-    return subject_dirs
+    return exp_dirs
 
 def match_subject_dates(project, subjects, start=None, end=None):
     """
@@ -805,7 +807,7 @@ def get_data(user, project, host=DEFAULT_XNAT_HOST, port=DEFAULT_XNAT_PORT,
 
     Returns
     -------
-    list : list of subject directory paths with fetched data
+    list : list of subject experiment directory paths with fetched data
     """
 
     # Set up logging according to desired verbosity level.
@@ -829,7 +831,7 @@ def get_data(user, project, host=DEFAULT_XNAT_HOST, port=DEFAULT_XNAT_PORT,
     # Get the data
     msg = 'Downloading data from XNAT'
     logging.info('{0}\n{1:^80}\n{2}'.format('='*80,msg,'='*80))
-    subject_dirs = pull_data(xnat, target_dir, project=project,
+    exp_dirs = pull_data(xnat, target_dir, project=project,
                             sub_list=sub_list,
                             series_skip_list=series_skip_list,
                             series_keep_list=series_keep_list,
@@ -848,7 +850,7 @@ def get_data(user, project, host=DEFAULT_XNAT_HOST, port=DEFAULT_XNAT_PORT,
     xnat.disconnect()
     msg = 'DONE'
     logging.info('{0}\n{1:^80}\n{2}'.format('='*80,msg,'='*80))
-    return subject_dirs
+    return exp_dirs
 
 if __name__ == "__main__":
     # This code funs only if this module is run directly, rather than imported
