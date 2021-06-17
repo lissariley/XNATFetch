@@ -17,12 +17,16 @@ Download or clone this repository, and place it in a place accessible from the s
 ## Example usage:
 `python /your/path/to/pull_and_process_MRI_data.py`
 * Display basic help for `pull_and_process_MRI_data.py`
+
 `python /your/path/to/pull_and_process_MRI_data.py -h`
 * Display detailed help for `pull_and_process_MRI_data.py`
+
 `python /your/path/to/pull_and_process_MRI_data.py -u drjanedoe -vv 123456789`
 * Pull all subjects and all data for XNAT username "drjanedoe", project # 123456789
+
 `python /your/path/to/pull_and_process_MRI_data.py -u drjanedoe --sub-list "SUB1,SUB2,SUB7" -vv 123456789`
 * Pull three specific subjects, and all data for XNAT username "drjanedoe", project # 123456789
+
 `python /your/path/to/pull_and_process_MRI_data.py -u drjanedoe --include_list "DICOM" -vv 123456789`
 * Pull all subjects, only files from resources marked "DICOM" for XNAT username "drjanedoe", project # 123456789
 
