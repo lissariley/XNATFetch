@@ -290,8 +290,11 @@ def is_concatenated(me_dir, scan_name, echoes):
     for echo in range(echoes):
         concatenated_filename = get_concatenated_filename(scan_name=scan_name, echo=echo)
         concatenated_filepath = op.join(me_dir, concatenated_filename)
+        logging.info('Checking if concatenated file {p} already exists...'.format(p=concatenated_filepath))
         if not os.path.exists(concatenated_filepath):
+            logging.info('Concatenated file {p} does not already exist...'.format(p=concatenated_filepath))
             return False
+        logging.info('Concatenated file {p} does already exist...'.format(p=concatenated_filepath))
     return True
 
 def concatenate_subject(subject_dir, echoes=3, delete_dcms=False):

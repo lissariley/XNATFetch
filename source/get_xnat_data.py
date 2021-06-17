@@ -337,7 +337,7 @@ def pull_data(xnat, target_dir,
     logging.info('++ Series type keep list:')
     logging.info('++ ' + str(series_keep_list))
 
-    exp_dirs = []
+    exp_paths = []
 
     # Loop over subject IDs
     logging.info('+ Looking for data in {n} subjects...'.format(n=len(subjects)))
@@ -382,6 +382,11 @@ def pull_data(xnat, target_dir,
                 else:
                     # This is not the first experiment - put it in a separate sub-folder
                     exp_path = os.path.join(sub_path, 'EXPERIMENT_{exp_id}'.format(exp_id=slugify(exp_id)))
+                    try:
+                        # Create the separate experiment subfolder
+                        os.mkdir(exp_path)
+                    except FileExistsError:
+                        logging.warning('+++ Folder for this subject experiment subfolder already exists.')
 
                 # Loop over scan IDs
                 for scanName in sorted(exp.scans().get(), key=int):
@@ -497,10 +502,10 @@ def pull_data(xnat, target_dir,
             logging.critical('++ Attempting to continue with remaining subjects...')
 
         # Keep a running log of the list of subject directories for later
-        exp_dirs.append(exp_path)
+        exp_paths.append(exp_path)
         logging.info('\n')
 
-    return exp_dirs
+    return exp_paths
 
 def match_subject_dates(project, subjects, start=None, end=None):
     """
@@ -831,7 +836,7 @@ def get_data(user, project, host=DEFAULT_XNAT_HOST, port=DEFAULT_XNAT_PORT,
     # Get the data
     msg = 'Downloading data from XNAT'
     logging.info('{0}\n{1:^80}\n{2}'.format('='*80,msg,'='*80))
-    exp_dirs = pull_data(xnat, target_dir, project=project,
+    exp_paths = pull_data(xnat, target_dir, project=project,
                             sub_list=sub_list,
                             series_skip_list=series_skip_list,
                             series_keep_list=series_keep_list,
@@ -850,7 +855,7 @@ def get_data(user, project, host=DEFAULT_XNAT_HOST, port=DEFAULT_XNAT_PORT,
     xnat.disconnect()
     msg = 'DONE'
     logging.info('{0}\n{1:^80}\n{2}'.format('='*80,msg,'='*80))
-    return exp_dirs
+    return exp_paths
 
 if __name__ == "__main__":
     # This code funs only if this module is run directly, rather than imported
