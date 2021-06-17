@@ -1,0 +1,13 @@
+certifi==2020.12.5
+chardet==4.0.0
+future==0.18.2
+idna==2.10
+lxml==4.6.3
+numpy==1.19.5
+pathlib==1.0.1
+pydicom==2.1.2
+python-dateutil==2.8.1
+pyxnat==1.4
+requests==2.25.1
+six==1.16.0
+urllib3==1.26.5
