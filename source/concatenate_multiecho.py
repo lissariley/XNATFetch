@@ -166,7 +166,7 @@ def is_scan_ME(scan_dir):
     """
     files = glob.glob(op.join(scan_dir,'*.dcm'))
     if len(files) == 0:
-        logging.info('No files found in scan dir {scan}\n'.format(scan=scan_dir))
+        logging.info('No DICOM files found in scan dir {scan}\n'.format(scan=scan_dir))
         return False
 
     logging.info('Found {k} DICOM files in scan dir {scan}...\n'.format(scan=scan_dir, k=len(files)))
@@ -283,7 +283,7 @@ def make_complete(exam_dir, echoes=3, interactive=True, multiEchoSubDir=ME_SUBDI
         logging.info('No missed scans!')
 
 def get_concatenated_filename(scan_name, echo):
-    return 'run{scan_name:04d}.e{echo:02d}'.format(scan_name=int(scan_name), echo=nEcho)
+    return 'run{scan_name:04d}.e{echo:02d}'.format(scan_name=int(scan_name), echo=echo)
 
 def is_concatenated(me_dir, scan_name, echoes):
     # Check if scan has been fully concatenated or not
@@ -306,7 +306,6 @@ def concatenate_scans(scan_dirs, echoes=3, interactive=True, delete_dcms=False):
     for scan_dir in scan_dirs:
         make_complete(scan_dir, echoes=echoes, interactive=interactive)
     logging.info("...done!")
-
 
 def get_slice_index(dcm_file):
     return dicom.dcmread(dcm_file, specific_tags=[(0x0019,0x10a2)]).get((0x0019, 0x10a2)).value
@@ -439,7 +438,7 @@ def concatenate_scan(scan_dir, echoes=3, interactive=True, delete_dcms=False):
     for nEcho in range(echoes):
         logging.info('Processing echo #{k}/{n}...'.format(k=nEcho, n=echoes))
         # Format the output filename for the nifti files
-        output_filename = get_concatenated_filename(scan_name=scan_name, echo=echo)
+        output_filename = get_concatenated_filename(scan_name=scan_name, echo=nEcho)
         # Format the name for some of the temporary files
         gert_filename = 'GERT_Reco_dicom_{scan_name:03d}_e{echo:02d}'.format(scan_name=int(scan_name), echo=nEcho)
         # Create temp dir in which to run this Dimon process, so it doesn't
