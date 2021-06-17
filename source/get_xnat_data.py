@@ -46,7 +46,9 @@ VERBOSITY = {0 : logging.CRITICAL,
 def is_keeper(seriesDescription, series_keep_list=None, series_skip_list=None):
     """
     Checks a series description against keep and skip lists to determine if the
-    resource should be fetched or not.
+    resource should be fetched or not. If series_keep_list is provided,
+    series_skip_list is ignored. If neither series_keep_list nor
+    series_skip_list are provided, True is returned.
 
     Parameters
     -----------
@@ -62,18 +64,17 @@ def is_keeper(seriesDescription, series_keep_list=None, series_skip_list=None):
     bool : should file be fetched?
     """
 
-    if series_keep_list is not None:
+    if series_keep_list is not None and len(series_keep_list) > 0:
         # Check if series description matches anything in the keep list
         keep = [f for f in series_keep_list if fnmatch.fnmatch(seriesDescription, f)]
         logging.debug('Series {seriesDescription} matches {n} keep elements'.format(seriesDescription=seriesDescription, n=len(keep)))
         return len(keep) > 0
-    if series_skip_list is not None:
+    if series_skip_list is not None and len(series_keep_list) > 0:
         # Check if series description matches anything in the skip list
         skip = [f for f in series_skip_list if fnmatch.fnmatch(seriesDescription, f)]
         logging.debug('Series {seriesDescription} matches {n} skip elements'.format(seriesDescription=seriesDescription, n=len(skip)))
         return len(skip) == 0
-    # # We will get the file if it matches something in the keep list and not in the skip list OR if it doesn't match anything in either list.
-    # return (keep and (not skip)) or ((not keep) and (not skip))
+    return True
 
 def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
     aux_files_fetch_list=[], aux_files_unzip_list=[], aux_files_org_regex=None,
@@ -157,7 +158,7 @@ def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
                 #   the base name of the zip file as the directory name.
                 temp_unzip_path = os.path.join(aux_path, os.path.splitext(os.path.basename(auxiliary_filename))[0])
                 if not os.path.exists(temp_unzip_path):
-                    logging.info('++ Unzipping auxiliary file to {temp_unzip_path}.'.format(temp_unzip_path=temp_unzip_path))
+                    logging.info('++ Unzipping auxiliary file {aux_file} to {temp_unzip_path}.'.format(temp_unzip_path=temp_unzip_path, aux_file=auxiliary_filename))
                     # Prepare to unzip aux file
                     fzip = zipfile.ZipFile(fetched_auxiliary_files[auxiliary_filename], 'r')
                     # Attempt to unzip file into subdirectory of base subject path
@@ -167,9 +168,12 @@ def fetch_and_organize_aux_files(exp, sub_path, aux_file_group_label,
                     os.remove(fetched_auxiliary_files[auxiliary_filename])
                 else:
                     logging.info('++ Skipping unzip of auxiliary file to {temp_unzip_path} because that path already exists.'.format(temp_unzip_path=temp_unzip_path))
-            except:
-                logging.critical('++ WARNING: Failed to unzip auxiliary file {aux_file}.'.format(aux_file=auxiliary_filename))
+            except NotImplementedError:
                 traceback.print_exc()
+                logging.critical('++ WARNING: Failed to unzip auxiliary file {aux_file} because the zipfile python library doesn\'t have that compression algorithm.'.format(aux_file=auxiliary_filename))
+            except:
+                traceback.print_exc()
+                logging.critical('++ WARNING: Failed to unzip auxiliary file {aux_file} for unknown reasons.'.format(aux_file=auxiliary_filename))
 
         logging.info('++ Attempting to organize any files matching pattern {regex} into a scan folder...'.format(regex=aux_files_org_regex))
         # Assemble a full list of all auxiliary files
@@ -306,8 +310,10 @@ def pull_data(xnat, target_dir,
     # if all_data < 1: series_skip_list.extend(['ASSET calibration', '3-Plane-Loc'])
     # if all_data < 2: series_skip_list.extend(['DICOM', 'SNAPSHOTS'])
 
-    logging.info('Sub list:')
+    logging.info('Sub include list:')
     logging.info(sub_list)
+    logging.info('Matching subjects found:')
+    logging.info(subjects)
     logging.info('Ignored list:')
     logging.info(series_skip_list)
     logging.info('keep list:')
@@ -316,7 +322,7 @@ def pull_data(xnat, target_dir,
     subject_dirs = []
 
     # Loop over subject IDs
-    logging.info('+++ Looking for data in {n} subjects...'.format(n=len(subjects)))
+    logging.info('+ Looking for data in {n} subjects...'.format(n=len(subjects)))
     for s in sorted(subjects):
         try:
             # Obtain subject object
@@ -328,12 +334,13 @@ def pull_data(xnat, target_dir,
             try:
                 os.mkdir(sub_path)
             except FileExistsError:
-                logging.warning('++ Folder for this subject already exists.')
+                logging.warning('+++ Folder for this subject already exists.')
 
+            # Experiments =
             # Obtain 1st (and probably only) experiment object in subject
             try: exp = sub.experiment(sub.experiments().get()[0])
             except IndexError:
-                logging.info("++ WARNING: Subject data does not exist? Skipping.")
+                logging.warning("+++ WARNING: Subject data does not exist? Skipping.")
                 continue
 
             # Warn user if there was more than one experiment for this subject
