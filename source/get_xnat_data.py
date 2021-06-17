@@ -236,9 +236,9 @@ def fetch_and_organize_aux_files(exp, exp_path, aux_file_group_label,
             else:
                 non_org_count = non_org_count + 1
         logging.info('++ Done organizing auxiliary files into scan folders:')
-        logging.info('++    Successfully organized {n} auxiliary files into scan folders.'.format(n=org_count))
-        logging.info('++    Failed to organize {n} auxiliary files into scan folders.'.format(n=org_fail))
-        logging.info('++    {n} auxiliary files were not marked with a scan.'.format(n=non_org_count))
+        logging.info('+++ Successfully organized {n} auxiliary files into scan folders.'.format(n=org_count))
+        logging.info('+++ Failed to organize {n} auxiliary files into scan folders.'.format(n=org_fail))
+        logging.info('+++ {n} auxiliary files were not marked with a scan.'.format(n=non_org_count))
 
 def pull_data(xnat, target_dir,
               project=None, sub_list=None,
@@ -367,7 +367,7 @@ def pull_data(xnat, target_dir,
                 # If there are more than one experiment in this subject, inform
                 #   the user of how we're doing on them.
                 if len(experiment_ids) > 1:
-                    logging.critical('+++ Fetching experiment #{k} of {n} for this subject.'.format(k=exp_num+1, n=len(experiment_ids)))
+                    logging.critical('++ Fetching experiment #{k} of {n} for this subject.'.format(k=exp_num+1, n=len(experiment_ids)))
 
                 # Attempt to obtain the experiment object. If that fails, move on.
                 try: exp = sub.experiment(exp_id)
@@ -415,12 +415,12 @@ def pull_data(xnat, target_dir,
                         logging.warning('++++ Folder for scan #{scan} already exists.'.format(scan=scanName))
                         if not overwrite_existing:
                             if len(os.listdir(scan_path)) == 0:
-                                logging.warning('+++++ Fetching scan anyways, because that scan directory appears to be empty.')
+                                logging.warning('++++ Fetching scan anyways, because that scan directory appears to be empty.')
                             else:
-                                logging.warning('+++++ Skipping fetch of scan that already exists.')
+                                logging.warning('++++ Skipping fetch of scan that already exists.')
                                 continue
                         else:
-                            logging.warning('+++++ Re-fetching scan that already exists.')
+                            logging.warning('++++ Re-fetching scan that already exists.')
 
                     logging.info('++++ Querying resources in scan {0} (type {1})'.format(scanName, s_descrip))
 
@@ -437,24 +437,24 @@ def pull_data(xnat, target_dir,
                         #   wants. Not sure why we do this twice, once for the scan,
                         #   and once for each of the resources within the scan.
                         if is_keeper(res.label(), series_keep_list, series_skip_list):
-                            logging.info('+++++ Fetching resource with series description {s_descrip}'.format(s_descrip=res.label()))
+                            logging.info('++++ Fetching resource with series description {s_descrip}'.format(s_descrip=res.label()))
                         else:
-                            logging.info('+++++ Skipping resource with series description {s_descrip}'.format(s_descrip=res.label()))
+                            logging.info('++++ Skipping resource with series description {s_descrip}'.format(s_descrip=res.label()))
                             continue
 
                         # Fetch all scan files in zip archive
                         extracted_paths = res.get(scan_path, extract=True)
-                        logging.info('+++++ Fetched and extracted {n} files.'.format(n=len(extracted_paths)))
+                        logging.info('++++ Fetched and extracted {n} files.'.format(n=len(extracted_paths)))
                         extracted_root = os.path.dirname(extracted_paths[0])
                         extracted_files = os.listdir(extracted_root)
 
                         # Move unzipped files into base scan directory
-                        logging.info('+++++ Attempting to move unzipped files from temporary directroy to scan directory.')
+                        logging.info('++++ Attempting to move unzipped files from temporary directroy to scan directory.')
                         for file_name in extracted_files:
                             try:
                                 shutil.move(os.path.join(extracted_root, file_name), scan_path)
                             except shutil.Error:
-                                logging.critical('+++++ Filename collision: Could not move extracted file "{file_name}" to scan dir "{scan_path}", probably because it already existed there.'.format(file_name=file_name, scan_path=scan_path))
+                                logging.critical('++++ Filename collision: Could not move extracted file "{file_name}" to scan dir "{scan_path}", probably because it already existed there.'.format(file_name=file_name, scan_path=scan_path))
 
                         # If all zipped files were moved to base scan directory, remove the temporary directory. If not, warn the user, and change the temporary directory name to "collisions"
                         remaining_extracted_files = os.listdir(extracted_root)
