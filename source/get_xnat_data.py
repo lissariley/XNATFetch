@@ -342,11 +342,11 @@ def pull_data(xnat, target_dir,
 
     # Loop over subject IDs
     logging.info('+ Looking for data in {n} subjects...'.format(n=len(subjects)))
-    for s in sorted(subjects):
+    for s_num, s in enumerate(sorted(subjects)):
         try:
             # Obtain subject object
             sub = proj.subject(s)
-            logging.info('++ Getting data for subject {0}'.format(sub.label()))
+            logging.info('++ Getting data for subject {sub_label} (#{k} of {n})'.format(sub_label=sub.label(), k=s_num, n=len(subjects)))
 
             # Create directory for subject's data
             sub_path = os.path.join(target_dir,sub.label())
@@ -386,7 +386,6 @@ def pull_data(xnat, target_dir,
 
                 # Loop over scan IDs
                 for scanName in sorted(exp.scans().get(), key=int):
-                    logging.info(' ');
                     logging.info('+++ Getting scan #{scan}'.format(scan=scanName))
 
                     # Obtain scan object
