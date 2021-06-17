@@ -290,7 +290,7 @@ def is_concatenated(me_dir, scan_name, echoes):
     for echo in range(echoes):
         concatenated_filename = get_concatenated_filename(scan_name=scan_name, echo=echo)
         concatenated_filepath = op.join(me_dir, concatenated_filename)
-        if not os.exists(concatenated_filepath):
+        if not os.path.exists(concatenated_filepath):
             return False
     return True
 
