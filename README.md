@@ -32,9 +32,8 @@ Download or clone this repository, and place it in a place accessible from the s
 
 ## Known issues
 * -k switch to delete concatenated dicoms is not implemented
-* Error in one subject stops entire process
 * Aux files in subdirectories fail to download.
-* If a subject has multiple exams, only one is downloaded
+* Skipping pre-existing concatenation is not working yet
 
 ## Planned upgrades
 * Make script automatically skip multiecho concatenation if appropriate nifti files already exist, and skip re-downloading auxiliary files
