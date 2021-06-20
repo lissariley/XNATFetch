@@ -33,8 +33,11 @@ Download or clone this repository, and place it in a place accessible from the s
 ## Tips
 ### Set up a virtual environment
 Run this command to create a virtual environment called "xnat" (substitute the path where you want it to exist)
+```
 > python -m venv /path/where/you/want/virtualenv/called/xnat
+```
 Edit your bash profile to create a convenient alias so it's easy to activate it:
+```
 > echo "# Set up convenient alias for activating xnat virtual environment" >> ~/.profile
 > echo 'alias xnat=" \' >> ~/.profile
 > echo "   source /home/shared/aclab-fmri/Studies/33_MOTIP2018/scripts/xnat/xnatenv/bin/activate; \" >> ~/.profile
@@ -42,7 +45,7 @@ Edit your bash profile to create a convenient alias so it's easy to activate it:
 > echo 'Type deactivate to deactivate environment.\n\n'"'
 Then activate your environment by typing
 > xnat
-
+```
 ## Known issues
 * -k switch to delete concatenated dicoms is not implemented
 * Aux files in subdirectories fail to download.
