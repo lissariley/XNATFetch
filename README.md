@@ -40,9 +40,9 @@ Edit your bash profile to create a convenient alias so it's easy to activate it:
 ```
 > echo "# Set up convenient alias for activating xnat virtual environment" >> ~/.profile
 > echo 'alias xnat=" \' >> ~/.profile
-> echo "   source /home/shared/aclab-fmri/Studies/33_MOTIP2018/scripts/xnat/xnatenv/bin/activate; \" >> ~/.profile
-> echo "   printf '\nxnat python environment activated, for getting and preprocessing MRI data from XNAT server. \" >> ~/.profile
-> echo 'Type deactivate to deactivate environment.\n\n'"'
+> echo "   source /home/shared/aclab-fmri/Studies/33_MOTIP2018/scripts/xnat/xnatenv/bin/activate; \ " >> ~/.profile
+> echo "   printf '\nxnat python environment activated, for getting and preprocessing MRI data from XNAT server. \ " >> ~/.profile
+> echo 'Type deactivate to deactivate environment.\n\n' >> ~/.profile
 ```
 Then activate your environment by typing
 ```
