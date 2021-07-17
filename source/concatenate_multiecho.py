@@ -476,6 +476,13 @@ def concatenate_scan(scan_dir, echoes=3, interactive=True, delete_dcms=False):
         #     os.remove(temp_file)
         logging.info('...done processing echo #{k}/{n}...'.format(k=nEcho, n=echoes))
 
+    # Delete successfully concatenated dicoms, if requested.
+    if delete_dcms:
+        logging.info('Deleting concatenated dicoms...')
+        for file in dicom_list:
+            os.remove(file)
+        logging.info('...done deleting dicoms')
+
     logging.info('...complete')
 
 if __name__ == '__main__':
